@@ -3,6 +3,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.RuleNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import java.util.Collection;
 import java.util.TreeMap;
 
 /**
@@ -27,12 +28,10 @@ public class JSVisitor implements ECMAScriptVisitor<Object> {
             System.out.printf(" Visiting: %s...\r\n", child.getClass().toString());
             child.accept(this);
         }
-
         return null;
     }
 
     /* sourceElements : sourceElement+ -> Handled in visitProgram */
-
     @Override
     public Object visitSourceElements(ECMAScriptParser.SourceElementsContext sourceElementsContext) {
         return null;
@@ -120,61 +119,121 @@ public class JSVisitor implements ECMAScriptVisitor<Object> {
         return null;
     }
 
-    /* initialiser : '=' singleExpression ;*/
+    /* initialiser : '=' singleExpression */
     @Override
     public Object visitInitialiser(ECMAScriptParser.InitialiserContext initialiserContext) {
         initialiserContext.singleExpression().accept(this);
         return null;
     }
 
-    /*  */
+    /*  emptyStatement : SemiColon */
     @Override
     public Object visitEmptyStatement(ECMAScriptParser.EmptyStatementContext emptyStatementContext) {
         return null;
     }
 
+
+    /* expressionStatement : {(_input.LA(1) != OpenBrace) && (_input.LA(1) != Function)}? expressionSequence eos */
     @Override
     public Object visitExpressionStatement(ECMAScriptParser.ExpressionStatementContext expressionStatementContext) {
+        expressionStatementContext.expressionSequence().accept(this);
         return null;
     }
 
+    /* IfStatement :   if ( Expression ) Statement else Statement
+                       if ( Expression ) Statement */
     @Override
     public Object visitIfStatement(ECMAScriptParser.IfStatementContext ifStatementContext) {
+        int i = ifStatementContext.getChildCount();
+        if ((boolean)(ifStatementContext.expressionSequence().accept(this)) == true)
+            ifStatementContext.statement(0).accept(this);
+        else
+            if (ifStatementContext.Else() != null)
+                ifStatementContext.statement(1).accept(this);
         return null;
     }
 
+    /* Do statement While '(' expressionSequence ')' eos */
     @Override
     public Object visitDoStatement(ECMAScriptParser.DoStatementContext doStatementContext) {
+        do
+        {
+            doStatementContext.statement().accept(this);
+        } while ((boolean)doStatementContext.expressionSequence().accept(this));
+
         return null;
     }
 
+    /* While '(' expressionSequence ')' statement */
     @Override
     public Object visitWhileStatement(ECMAScriptParser.WhileStatementContext whileStatementContext) {
+        while ((boolean)whileStatementContext.expressionSequence().accept(this))
+            whileStatementContext.statement();
         return null;
     }
 
+    /* For '(' expressionSequence? ';' expressionSequence? ';' expressionSequence? ')' statement */
     @Override
     public Object visitForStatement(ECMAScriptParser.ForStatementContext forStatementContext) {
+
+        if (forStatementContext.expressionSequence(0) != null)
+            forStatementContext.expressionSequence(0).accept(this);
+
+        while (forStatementContext.expressionSequence(1) == null
+                || (boolean)forStatementContext.expressionSequence(1).accept(this)) {
+
+            forStatementContext.statement().accept(this);
+            forStatementContext.expressionSequence(2).accept(this); //For update statement
+        }
         return null;
     }
 
+    /* For '(' Var variableDeclarationList ';' expressionSequence? ';' expressionSequence? ')' statement */
     @Override
     public Object visitForVarStatement(ECMAScriptParser.ForVarStatementContext forVarStatementContext) {
+
+        forVarStatementContext.variableDeclarationList().accept(this);
+
+        if (forVarStatementContext.expressionSequence(0) != null)
+            forVarStatementContext.expressionSequence(0).accept(this);
+
+        while (forVarStatementContext.expressionSequence(0) == null
+                || (boolean)forVarStatementContext.expressionSequence(0).accept(this)) {
+
+            forVarStatementContext.statement().accept(this);
+            forVarStatementContext.expressionSequence(1).accept(this); //For update statement
+        }
+
         return null;
     }
 
+    // TODO: Check forInStatementContext.singleExpression() is leftHandSide expression
+    private void assign(Object lval, Object e) {
+    }
+
+    /* For '(' singleExpression In expressionSequence ')' statement */
     @Override
     public Object visitForInStatement(ECMAScriptParser.ForInStatementContext forInStatementContext) {
+        for (Object e : (Collection) forInStatementContext.expressionSequence().accept(this)) {
+            assign (forInStatementContext.singleExpression().accept(this), e);
+            forInStatementContext.statement();
+        }
         return null;
     }
 
+    /* For '(' Var variableDeclaration In expressionSequence ')' statement */
     @Override
     public Object visitForVarInStatement(ECMAScriptParser.ForVarInStatementContext forVarInStatementContext) {
+        for (Object e : (Collection) forVarInStatementContext.expressionSequence().accept(this)) {
+            assign (forVarInStatementContext.variableDeclaration().accept(this), e);
+            forVarInStatementContext.statement();
+        }
         return null;
     }
-
+//TODO: Implement here
     @Override
     public Object visitContinueStatement(ECMAScriptParser.ContinueStatementContext continueStatementContext) {
+
         return null;
     }
 
