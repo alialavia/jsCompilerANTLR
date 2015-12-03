@@ -28,6 +28,5 @@ public class JSCompiler {
 
         tree.accept(visitor);
 
-
     }
 }
